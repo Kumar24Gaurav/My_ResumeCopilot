@@ -255,6 +255,12 @@ def search_resume(query: str):
     if "contact" in query:
         return resume.contact
 
+    if any(word in query for word in ["summary", "about", "profile", "introduce"]):
+        if resume.summary:
+            return resume.summary
+
+        return resume.model_dump()
+
     for project in resume.projects:
         if query in project.name.lower():
             return project
@@ -338,6 +344,12 @@ def chat_with_resume():
     7. Keep answers concise and professional.
     8. If user ask any other skill that is not in the resume, reply:
         "He doesn't have that skill. but he is always eager to learn new skills and technologies."
+    9. If the user asks for a professional summary, profile summary, or "Tell me about Kumar":
+    - If a summary exists in the parsed resume, present it.
+    - Otherwise, create a professional summary using only the verified resume data.
+    - Mention relevant experience, key technical skills, major projects, education, certifications, and career focus when available.
+    - Keep the summary concise (4–6 sentences) and professional.
+    - Never fabricate information.
     """
 
     messages = [
