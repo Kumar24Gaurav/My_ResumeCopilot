@@ -305,6 +305,7 @@ tools = [
 
 def chat_with_resume():
     print("Welcome Recruiters!")
+    print("Type \"exit\" to quit this chat...")
     system_prompt = """
     You are Kumar Gaurav's AI Portfolio Assistant.
 
@@ -325,7 +326,7 @@ def chat_with_resume():
     - achievements
 
     2. get_link(query)
-    -- Use this whenever the use asks for:
+    -- Use this whenever the user asks for:
     - github
     - linkedin
     - portfolio
