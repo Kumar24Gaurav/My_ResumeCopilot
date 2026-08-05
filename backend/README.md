@@ -1,336 +1,171 @@
-# 🤖 AI Portfolio Assistant
+﻿# 🤖 AI Portfolio Assistant
 
-An AI-powered Resume Assistant that parses a resume into structured data using an LLM and allows recruiters to interact with it through natural language.
+This README documents the current behavior of [backend/portfolioCopilot.py](backend/portfolioCopilot.py) as a single-file Python prototype for an AI-powered portfolio assistant.
 
-Instead of searching a resume manually, recruiters can ask questions like:
+The script reads a resume, extracts structured information with an LLM, stores that information in Pydantic models, and then allows a recruiter-style chat loop to answer natural-language questions using two Python tools.
+
+## ⚙️ What the script does
+
+At runtime, the file performs the following sequence:
+
+1. Loads environment variables from `.env`.
+2. Reads the Groq API key from `GROQ_API_KEY`.
+3. Initializes the Groq client and selects the model `openai/gpt-oss-120b`.
+4. Loads a resume from the `resume/` directory.
+5. Reads either a PDF or DOCX file into plain text.
+6. Sends the raw resume text to the LLM with a strict JSON schema.
+7. Parses the response into a validated `Resume` object using Pydantic.
+8. Exposes two callable tools:
+   - `search_resume(query)`
+   - `get_link(query)`
+9. Runs a terminal chat loop using `chat_with_resume()`.
+
+## 🔄 Current execution flow
+
+```text
+Resume file (PDF or DOCX)
+        |
+        v
+read_resume() -> read_pdf() / read_docx()
+        |
+        v
+Raw text
+        |
+        v
+extract_resume()
+        |
+        v
+Structured Pydantic resume object
+        |
+        v
+search_resume() and get_link()
+        |
+        v
+LLM tool-calling conversation
+```
+
+## 📁 File responsibilities
+
+### 📄 Resume ingestion
+
+The script only accepts `.pdf` and `.docx` files.
+
+- PDF support is handled by `pypdf`.
+- DOCX support is handled by `python-docx`.
+
+The parser builds a text blob from:
+
+- PDF page text
+- DOCX paragraphs
+- DOCX table cell content
+
+### 🧠 Structured extraction
+
+The parsed resume is converted into a strongly typed schema through Pydantic models:
+
+- `Contact`
+- `Education`
+- `Experience`
+- `Project`
+- `Resume`
+
+The final structured shape contains:
+
+- `name`
+- `summary`
+- `contact`
+- `skills`
+- `education`
+- `experience`
+- `projects`
+- `certifications`
+
+### 🔎 Tool-based querying
+
+#### 🔍 `search_resume(query)`
+
+This function searches the parsed resume object by topic. It is intended to answer questions related to:
+
+- skills
+- education
+- experience
+- projects
+- contact details
+- certifications
+- summary
+
+#### 🔗 `get_link(query)`
+
+This function looks up portfolio-related URLs stored in the `METADATA` dictionary. It can return:
+
+- portfolio URL
+- GitHub profile
+- LinkedIn profile
+- project live links
+- project repository links
+
+## 💬 Chat loop behavior
+
+The `chat_with_resume()` function starts an interactive terminal session.
+
+The system prompt tells the assistant to:
+
+- answer only questions about the person in the resume
+- use tools when needed
+- never invent facts
+- answer concise and professionally
+- return a short summary when the user asks for profile information
+
+The chat loop:
+
+1. receives a user question
+2. sends it to the model with the available tools
+3. decides whether a tool call is needed
+4. runs `search_resume()` or `get_link()` if required
+5. sends the tool result back into the conversation
+6. returns the final answer
+
+## ❓ Example user questions
+
+The current assistant is designed to support questions like:
 
 - "What are Kumar's skills?"
 - "Tell me about his education."
-- "Describe the FinSight project."
+- "Describe his projects."
 - "Show me his GitHub profile."
-- "Does he have any certifications?"
+- "Does he have certifications?"
+- "Give me a professional summary."
 
-The assistant uses **LLM Function Calling** to decide when to search the parsed resume or retrieve portfolio links.
+## 🚀 Environment and execution
 
----
+The script expects:
 
-## 🚀 Features
+- a valid Groq API key in the environment
+- a resume file available in the local `resume/` folder
+- the Python dependencies installed in the backend environment
 
-- 📄 Read PDF and DOCX resumes
-- 🧠 Parse resumes into structured JSON using an LLM
-- ✅ Validate extracted data with Pydantic
-- 🔍 Search resume information using Python (no repeated LLM calls)
-- 🔗 Retrieve GitHub, LinkedIn, Portfolio, and Project links
-- 🤖 LLM Function Calling (Tool Calling)
-- 💬 Interactive chatbot interface
-- 🛡️ Prevents hallucinations by answering only from parsed data
-
----
-
-## 🛠️ Tech Stack
-
-- Python 3.11+
-- Groq API
-- GPT-OSS-120B
-- Pydantic
-- PyPDF
-- python-docx
-- python-dotenv
-
----
-
-## 📂 Project Structure
-
-```
-AI-Portfolio-Assistant/
-│
-├── resume/
-│   └── kumargaurav.pdf
-│
-├── main.py
-├── .env
-├── requirements.txt
-└── README.md
-```
-
----
-
-## 🏗️ Architecture
-
-```
-                Resume (PDF / DOCX)
-                        │
-                        ▼
-              Resume Reader (PyPDF)
-                        │
-                        ▼
-                  Raw Resume Text
-                        │
-                        ▼
-                LLM Resume Parser
-                        │
-                        ▼
-             Structured Resume (Pydantic)
-                        │
-      ┌─────────────────┴──────────────────┐
-      ▼                                    ▼
-search_resume()                     get_link()
-      │                                    │
-      └──────────────┬─────────────────────┘
-                     ▼
-             LLM Function Calling
-                     │
-                     ▼
-            AI Portfolio Assistant
-```
-
----
-
-## 📋 Resume Schema
-
-The resume is converted into a structured format using **Pydantic**.
-
-```python
-Resume
-│
-├── name
-├── summary
-├── contact
-│   ├── email
-│   └── phone
-├── skills
-├── education
-├── experience
-├── projects
-└── certifications
-```
-
----
-
-## 🔧 Available Tools
-
-### search_resume(query)
-
-Searches structured resume information including:
-
-- Skills
-- Education
-- Experience
-- Projects
-- Contact Information
-- Certifications
-
-Example:
-
-```
-User:
-What technologies does Kumar know?
-```
-
-```
-Tool:
-search_resume("technologies")
-```
-
----
-
-### get_link(query)
-
-Returns useful portfolio links.
-
-Supports:
-
-- GitHub
-- LinkedIn
-- Portfolio
-- Live Demo
-- Project Repository
-
-Example:
-
-```
-User:
-Show me the GitHub repository for FinSight.
-```
-
-```
-Tool:
-get_link("finsight github")
-```
-
----
-
-## 🧠 How It Works
-
-### Step 1
-
-Read the resume.
-
-```
-PDF
-   │
-   ▼
-Raw Text
-```
-
----
-
-### Step 2
-
-Parse the resume using GPT-OSS-120B.
-
-```
-Raw Text
-      │
-      ▼
-Structured Resume
-```
-
----
-
-### Step 3
-
-Store the parsed resume as a Pydantic object.
-
-```
-Resume Object
-```
-
----
-
-### Step 4
-
-The LLM decides whether a tool is needed.
-
-```
-User Question
-        │
-        ▼
-       LLM
-        │
-        ▼
-Tool Selection
-```
-
----
-
-### Step 5
-
-Execute the appropriate Python tool.
-
-```
-search_resume()
-
-or
-
-get_link()
-```
-
----
-
-### Step 6
-
-The tool result is sent back to the LLM to generate the final response.
-
-```
-Tool Result
-      │
-      ▼
-LLM
-      │
-      ▼
-Final Answer
-```
-
----
-
-## 💬 Example Questions
-
-```
-What are Kumar's skills?
-
-Tell me about his education.
-
-Describe the FinSight project.
-
-Show me his portfolio.
-
-Give me his LinkedIn profile.
-
-Does Kumar have any certifications?
-
-What technologies does he know?
-
-What is his phone number?
-```
-
----
-
-## ▶️ Installation
-
-Clone the repository.
+Run it with:
 
 ```bash
-git clone https://github.com/Kumar24Gaurav/AI-Portfolio-Assistant.git
+python portfolioCopilot.py
 ```
 
-Move into the project directory.
+## ⚠️ Current prototype limitations
 
-```bash
-cd AI-Portfolio-Assistant
-```
+This file is best understood as a proof of concept rather than a production-ready service. The main limitations are:
 
-Install dependencies.
+- everything is concentrated in one script
+- the resume path is hard-coded
+- the runtime interface is terminal-based
+- the assistant depends on the LLM to choose the correct tool call
 
-```bash
-pip install -r requirements.txt
-```
+## 🛠️ Refactoring direction
 
-Create a `.env` file.
+The next clean-up step would be to split the script into a clearer service structure, such as:
 
-```env
-GROQ_API_KEY=your_api_key_here
-```
+- resume readers
+- parser and schema layer
+- tool service layer
+- chat orchestration
+- API or frontend-facing integration
 
-Run the project.
-
-```bash
-python main.py
-```
-
----
-
-## 📌 Future Improvements
-
-- React Frontend
-- Persistent resume JSON cache
-- Multi-resume support
-- Semantic search using embeddings
-- Conversation memory
-- Voice interaction
-- Resume upload through UI
-
----
-
-## 🎯 Learning Outcomes
-
-This project demonstrates:
-
-- LLM Function Calling
-- AI Agent Workflow
-- Resume Parsing with LLMs
-- Structured Outputs
-- Pydantic Data Validation
-- Prompt Engineering
-- Tool Calling
-- Python Application Architecture
-
----
-
-## 👨‍💻 Author
-
-**Kumar Gaurav**
-
-- GitHub: https://github.com/Kumar24Gaurav
-- LinkedIn: https://www.linkedin.com/in/kumar-gaurav-814a58299
-- Portfolio: https://kumargaurav-portfolio.vercel.app
