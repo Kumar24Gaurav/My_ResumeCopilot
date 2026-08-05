@@ -378,8 +378,7 @@ def chat_with_resume():
         response = client.chat.completions.create(
             model=model,
             messages=messages,
-            tools=tools,
-            temperature=0
+            tools=tools, temperature=0
         )
 
         response_message = response.choices[0].message
